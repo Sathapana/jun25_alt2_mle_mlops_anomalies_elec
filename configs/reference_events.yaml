@@ -1,0 +1,30 @@
+# Catalogue d'événements historiques de référence (Niveau 1)
+# Sert à l'évaluation qualitative du détecteur face à des régimes atypiques ou chocs connus.
+reference_events:
+  - id: "cold_wave_feb_2012"
+    name: "Vague de froid exceptionnelle (Février 2012)"
+    category: "cold_wave"
+    start_date: "2012-02-01"
+    end_date: "2012-02-14"
+    expected_behavior: "Ne pas déclencher d'alerte continue sur 2 semaines une fois la tendance/prévision RTE prise en compte ; signaler uniquement le pic historique du 08/02 (~102 GW)."
+
+  - id: "august_15_weekend"
+    name: "Dimanche & Pont du 15 Août (Creux estival)"
+    category: "holiday"
+    start_date: "2023-08-12"
+    end_date: "2023-08-16"
+    expected_behavior: "Aucune fausse alerte de chute de consommation grâce à la désaisonnalisation et aux indicateurs calendaires (férié + pont)."
+
+  - id: "heatwave_aug_2023"
+    name: "Canicule tardive (Août 2023)"
+    category: "heatwave"
+    start_date: "2023-08-18"
+    end_date: "2023-08-25"
+    expected_behavior: "Identifier un régime saisonnier atypique (hausse climatisation + baisse disponibilité thermique) sans saturer le budget de 5 alertes/semaine."
+
+  - id: "industrial_strike_mar_2023"
+    name: "Mouvements sociaux sur le parc de production (Mars 2023)"
+    category: "social_movement"
+    start_date: "2023-03-07"
+    end_date: "2023-03-10"
+    expected_behavior: "Détecter les décrochages brusques de production par filière et d'échanges aux frontières."

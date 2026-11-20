@@ -1,76 +1,202 @@
-# Détection d'anomalies sur le réseau électrique français (MLOps)
+# Détection d'Anomalies sur le Réseau Électrique Français (MLOps — éCO2mix)
 
-> **Statut :** Kickoff & cadrage — Document à compléter et valider en équipe.
-> **Spécification du projet :** [docs/anomalies-reseau-electrique.md](docs/anomalies-reseau-electrique.md)
-> **Revue de littérature :** [docs/revue-litterature.md](docs/revue-litterature.md)
+Service MLOps automatisé de bout en bout pour la surveillance du réseau électrique français à partir des données ouvertes **éCO2mix** publiées par **RTE** (via l'API Opendatasoft).
 
----
-
-## Tâche 1 — Kickoff : Objectifs du projet & Métriques clés (Charte 1-page)
-
-### 1.1. Énoncé du problème (*One-sentence problem statement*)
-> *Proposition à valider / ajuster par l'équipe :*
-> « Construire un service MLOps automatisé de bout en bout qui surveille en continu les données éCO2mix de RTE afin de détecter les anomalies de consommation, de production ou de mesure, tout en distinguant les vrais incidents des effets saisonniers et calendaires. »
-
-- [ ] Validé par l'équipe *(ou remplacer ci-dessous)* :
-  - **Énoncé retenu :** `[À compléter si modifié]`
+Le projet met l'accent sur **la chaîne de production MLOps** (contrôles de qualité des données, désaisonnalisation explicite, seuillage dynamique non paramétrique, versionnement MLflow, API FastAPI, monitoring de dérive Evidently et boucle de qualification humaine) plutôt que sur la complexité brute d'un modèle isolé.
 
 ---
 
-### 1.2. Métriques clés & Budget d'alertes (*Success Criteria*)
+## Documents de Référence du Projet
 
-| Catégorie | Métrique | Cible / Seuil retenu | Commentaire |
-| :--- | :--- | :--- | :--- |
-| **Performance (anomalies synthétiques)** | Précision / Rappel ($F_{0.5}$ ou $F_1$) | Précision $\ge$ `[ex: 80%]` / Rappel $\ge$ `[ex: 75%]` | Priorité à la précision pour limiter la fatigue d'alerte |
-| **Réactivité** | Délai de détection (*Detection delay*) | $\le$ `[ex: 30 min (2 pas de 15 min)]` | Temps entre l'apparition de l'anomalie et l'alerte |
-| **Volume opérationnel** | Budget d'alertes (*Alert budget*) | Max `[ex: 5]` alertes / semaine | Au-delà, ajustement du seuil / *pruning* |
-| **Évaluation qualitative** | Comportement sur événements de référence | `[ex: Détecter X / Ne pas alerter en continu sur Y]` | Ex. : vague de froid, canicule, jours fériés, mouvements sociaux |
+- **[CADRAGE.md](CADRAGE.md)** : Charte de kickoff (énoncé du problème, métriques clés, budget d'alertes, attribution des rôles P1–P4) et formulaire de décision de la stack technique.
+- **[docs/anomalies-reseau-electrique.md](docs/anomalies-reseau-electrique.md)** : Cahier des charges détaillé du projet (Niveaux 1, 2 et 3) et sources de données.
+- **[docs/revue-litterature.md](docs/revue-litterature.md)** : Revue de littérature complète synthétisant les 6 références bibliographiques (Hyndman *FPP3*, Nixtla `StatsForecast`, Meta `Prophet`, LinkedIn `Luminol`, Hundman et al. *NASA Telemanom*, `Evidently AI`).
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** : Guide de contribution, conventions Git/CI, organisation par pôles (P1 à P4) et workflow de développement avec `uv`, `ruff` et `pytest`.
 
 ---
 
-### 1.3. Répartition des rôles (P1 – P4)
+## Vue d'Ensemble de l'Architecture
 
-| Rôle | Périmètre principal | Membre assigné |
+### 1. Schéma des Flux & Composants MLOps
+
+```mermaid
+flowchart LR
+    subgraph External ["Sources Externes"]
+        ODS["API Opendatasoft éCO2mix<br/>(Temps Réel 15m & Consolidé M+1)"]
+        METEO["API Open-Meteo<br/>(Optionnel Niv. 2/3)"]
+    end
+
+    subgraph P1 ["P1 — Data & Ingestion (ingestion, features, storage)"]
+        ING["Client API & Quota Guard<br/>(50k appels/mois)"]
+        DQ["Data Quality Gate<br/>(Schéma, trous, retards)"]
+        CAL["Feature Eng. Calendrier<br/>(Fériés FR, vacances, DST)"]
+        PARQ[("Stockage Parquet Partitionné<br/>+ Requêtage DuckDB")]
+    end
+
+    subgraph P2 ["P2 — Modélisation & Détection (models)"]
+        BASE["Baselines<br/>(Écart J-7 & Prévision RTE)"]
+        MSTL["Désaisonnalisation MSTL<br/>(StatsForecast [96, 672])"]
+        THRESH["Seuillage Dynamique EWMA<br/>+ Sequence Pruning (Telemanom)"]
+        CORR["Corrélation & Déduplication<br/>(Luminol - Niv. 2)"]
+    end
+
+    subgraph P3 ["P3 — MLOps, Orchestration & API (pipelines, api)"]
+        PREF["Flows Prefect<br/>(Ingestion 15m, Inférence, Retrain)"]
+        MLF[("MLflow Tracking<br/>& Model Registry")]
+        API["Service FastAPI<br/>(/detect, /alerts, /qualify, /health)"]
+    end
+
+    subgraph P4 ["P4 — Observabilité & UI (monitoring, dashboard)"]
+        EVID["Evidently Monitoring<br/>(Data Drift vs Concept Drift & Audit M+1)"]
+        STR["Dashboard Streamlit<br/>(Visualisation, Événements Réf., Qualification Humaine)"]
+    end
+
+    ODS --> ING --> DQ
+    METEO -.-> ING
+    DQ --> CAL --> PARQ
+    PARQ --> BASE & MSTL
+    BASE & MSTL --> THRESH --> CORR
+    PREF --> ING & MSTL & EVID
+    MSTL & THRESH <--> MLF
+    MLF --> API
+    PARQ <--> API
+    API <--> STR
+    PARQ --> EVID --> STR
+```
+
+### 2. Stack Technique
+
+| Brique MLOps | Outil retenu | Rôle dans l'architecture |
 | :--- | :--- | :--- |
-| **P1 — Data & Ingestion** | API éCO2mix (temps réel & consolidé), contrôles qualité, stockage, calendrier | `[Nom / Prénom]` |
-| **P2 — Modélisation & Détection** | Baselines ($J-7$, prévision RTE), désaisonnalisation (MSTL), seuillage dynamique | `[Nom / Prénom]` |
-| **P3 — MLOps & Orchestration** | Pipeline automatisé, tracking MLflow, CI/CD, API FastAPI, réentraînement | `[Nom / Prénom]` |
-| **P4 — Observabilité & Dashboard** | Monitoring (Evidently : qualité / drift), dashboard, boucle de qualification | `[Nom / Prénom]` |
+| **Orchestration** | **Prefect** | Planification en Python natif des flux d'ingestion (15 min / 1 h), de détection et de réentraînement. |
+| **Stockage & Requêtage** | **Parquet + DuckDB** | Historisation partitionnée idempotente des séries temporelles et requêtage SQL analytique rapide sans serveur. |
+| **Désaisonnalisation & Modèles** | **StatsForecast (Nixtla) + NumPy/SciPy** | Décomposition multi-saisonnière robuste (`MSTL`) et seuillage dynamique non paramétrique avec élagage (*Telemanom*). |
+| **Tracking & Registre** | **MLflow** | Suivi des expériences, versionnement des modèles et des hyperparamètres de seuillage, promotion en production. |
+| **API de Service** | **FastAPI** | Exposition REST des prédictions, de la liste des alertes et de la boucle de qualification humaine. |
+| **Dashboard & Qualification** | **Streamlit** | Visualisation temps réel, inspection sur événements de référence et interface de qualification des alertes. |
+| **Observabilité & Drift** | **Evidently AI** | Contrôles de qualité des données, détection de dérive (Wasserstein / PSI) et audit différé Temps Réel vs Consolidé ($M+1$). |
+| **Packaging, Qualité & CI** | **uv + Ruff + Pytest + Docker** | Gestion reproductible des dépendances (`pyproject.toml`), linting/formatage, tests automatisés et conteneurisation. |
 
 ---
 
-## Tâche 2 — Choix de la stack technique (*Tool Stack*)
+## Arborescence du Dépôt
 
-> Cocher l'option retenue pour chaque composant et compléter la justification en **une ligne**.
+L'architecture du code source sous `src/anomalies_elec/` est découpée selon les **4 pôles de responsabilité (P1 à P4)** afin de permettre le développement parallèle sans conflits Git :
 
-### 2.1. Orchestrateur / Scheduler
-- [ ] **Prefect**
-- [ ] **Apache Airflow**
-- **Justification (1 ligne) :** `[À compléter — ex: Prefect choisi pour sa légèreté en Python natif et sa mise en place rapide vs Airflow]`
-
-### 2.2. Stockage des données (*Storage*)
-- [ ] **Parquet** (fichiers partitionnés / DuckDB)
-- [ ] **PostgreSQL** (ou TimescaleDB)
-- [ ] **Hybride** (Parquet pour l'historique analytique + Postgres pour les alertes/métadonnées)
-- **Justification (1 ligne) :** `[À compléter — ex: Parquet partitionné par date pour les séries temporelles éCO2mix, simple et sans serveur]`
-
-### 2.3. Suivi d'expériences & Registre de modèles (*Tracking*)
-- [x] **MLflow** *(imposé)*
-- **Justification (1 ligne) :** `[À compléter — ex: Standard pour versionner les modèles, paramètres de seuillage, métriques et artefacts]`
-
-### 2.4. API de service (*Serving*)
-- [x] **FastAPI** *(imposé)*
-- **Justification (1 ligne) :** `[À compléter — ex: Framework Python asynchrone léger avec validation Pydantic et documentation OpenAPI native]`
-
-### 2.5. Tableau de bord (*Dashboard*)
-- [ ] **Streamlit**
-- [ ] **Grafana**
-- **Justification (1 ligne) :** `[À compléter — ex: Streamlit pour prototyper rapidement l'interface de qualification humaine des alertes]`
+```text
+jun25_alt2_mle_mlops_anomalies_elec/
+├── .github/
+│   └── workflows/
+│       └── ci.yml                      # Pipeline CI : linting (ruff) + tests (pytest)
+├── configs/
+│   ├── default.yaml                    # Configuration globale (API URLs, fenêtres MSTL, budget d'alertes)
+│   └── reference_events.yaml           # Événements historiques de référence (vagues de froid, canicules, fériés, grèves)
+├── data/                               # Données locales (ignorées par Git)
+│   ├── raw/                            # Parquet partitionné brut (source=tr|cons_def/scope=national|regional/...)
+│   ├── processed/                      # Séries enrichies (calendrier FR, résidus désaisonnalisés)
+│   └── alerts/                         # Historique des alertes et qualifications humaines
+├── docker/
+│   ├── Dockerfile.api                  # Image du service FastAPI
+│   ├── Dockerfile.dashboard            # Image du dashboard Streamlit
+│   └── Dockerfile.worker               # Image du worker Prefect / jobs d'entraînement
+├── docs/
+│   ├── anomalies-reseau-electrique.md  # Sujet et spécifications du projet
+│   └── revue-litterature.md            # Revue de littérature détaillée
+├── src/
+│   └── anomalies_elec/
+│       ├── __init__.py
+│       ├── config.py                   # Chargement typé (Pydantic) de la configuration
+│       ├── ingestion/                  # [P1] Collecte & Contrôles Qualité
+│       │   ├── eco2mix_client.py       # Client HTTP Opendatasoft v2.1 & gestion du quota (50k/mois)
+│       │   └── quality.py              # Validation du schéma, trous de publication, valeurs figées
+│       ├── storage/                    # [P1] Persistance idempotente
+│       │   └── parquet_store.py        # Écriture Parquet partitionnée & dédoublonnage SQL via DuckDB
+│       ├── features/                   # [P1/P2] Calendrier & Prétraitement
+│       │   └── calendar_fr.py          # Jours fériés FR, ponts, vacances scolaires, changements d'heure (DST)
+│       ├── models/                     # [P2] Baselines, Désaisonnalisation & Seuillage
+│       │   ├── baselines.py            # Baseline J-7 (même heure) & Baseline Prévision RTE (J-1 / J)
+│       │   ├── deseasonalize.py        # Désaisonnalisation multi-saisonnière MSTL (StatsForecast)
+│       │   ├── thresholding.py         # Lissage EWMA + seuillage non paramétrique + pruning (Hundman et al.)
+│       │   └── correlator.py           # [Niveau 2] Corrélation croisée avec décalage & déduplication inter-régions
+│       ├── pipelines/                  # [P3] Orchestration Prefect & Tracking MLflow
+│       │   ├── ingest_flow.py          # Flow d'ingestion incrémentale + Data Quality Gate
+│       │   ├── train_flow.py           # Flow d'entraînement, évaluation et enregistrement MLflow
+│       │   └── detect_flow.py          # Flow d'inférence continue et génération d'alertes
+│       ├── api/                        # [P3] Exposition REST
+│       │   ├── main.py                 # Application FastAPI (/health, /detect, /alerts, /alerts/{id}/qualify)
+│       │   └── schemas.py              # Schémas Pydantic de validation d'entrées/sorties
+│       ├── monitoring/                 # [P4] Observabilité & Dérive
+│       │   ├── drift.py                # Rapports Evidently (Data Quality, Data Drift vs Concept Drift)
+│       │   └── consolidated_audit.py   # [Niveau 3] Confrontation Temps Réel (TR) vs Consolidé (M+1)
+│       └── dashboard/                  # [P4] Interface Utilisateur
+│           └── app.py                  # Application Streamlit (Visualisation, Événements Réf., Qualification, Drift)
+├── tests/                              # Suite de tests unitaires et d'intégration (pytest)
+├── CADRAGE.md                          # Charte d'équipe (Tâches 1 & 2)
+├── CONTRIBUTING.md                     # Guide de contribution et conventions de développement
+├── README.md                           # Ce document
+├── docker-compose.yml                  # Orchestration multi-conteneurs locale
+└── pyproject.toml                      # Configuration du package, dépendances uv, ruff et pytest
+```
 
 ---
 
-## Validation du Kickoff
+## Progression Évolutive (Niveaux 1 à 3)
 
-- **Date de validation :** `[JJ/MM/AAAA]`
-- **Participants :** `[Liste des membres présents]`
-- [ ] Charte 1-page et choix de stack validés et commités sur `main`.
+L'architecture est conçue dès le départ autour du format tabulaire multi-séries standard (`unique_id`, `ds`, `y`) afin de passer du Niveau 1 au Niveau 3 sans réécriture structurelle :
+
+1. **Niveau 1 — Une série nationale, une chaîne complète :**
+   - `unique_id = "FR"`, pas de temps de 15 minutes (`freq = "15min"`).
+   - Contrôle qualité en amont (`ingestion/quality.py`) pour isoler les pannes de télémesure.
+   - Enrichissement calendaire (`features/calendar_fr.py`) et comparaison systématique avec les **2 baselines** (`models/baselines.py` : écart à $J-7$ même heure et écart à la prévision RTE).
+   - Désaisonnalisation explicite par **MSTL** (`season_length=[96, 672]`) suivie du **seuillage dynamique non paramétrique avec élagage** (`models/thresholding.py`) et évaluation sur le catalogue d'événements de référence (`configs/reference_events.yaml`).
+2. **Niveau 2 — Passage à l'échelle régional & flotte de modèles :**
+   - Extension aux 12 régions métropolitaines (`unique_id` par code région INSEE/RTE) au pas horaire (`season_length=[24, 168]`).
+   - Exploitation multivariée (consommation, filières de production nucléaire/éolien/solaire/hydraulique, échanges aux frontières) et déduplication d'alertes entre régions limitrophes via `models/correlator.py`.
+3. **Niveau 3 — Boucle de rétroaction & observabilité avancée :**
+   - Qualification humaine des alertes via `POST /alerts/{id}/qualify` et le dashboard Streamlit pour ajuster le seuil d'élagage $p$ et suivre la précision opérationnelle dans le temps.
+   - Distinction entre **régime saisonnier atypique** (*Data Drift* sur la consommation brute mais résidus stables vis-à-vis de la météo/prévision) et **dégradation du modèle** (*Concept Drift* sur les résidus) avec `monitoring/drift.py`.
+   - Confrontation automatisée à $M+1$ entre les alertes émises sur le flux Temps Réel (`eco2mix-*-tr`) et les données définitives (`eco2mix-*-cons-def`) via `monitoring/consolidated_audit.py`.
+
+---
+
+## Démarrage Rapide
+
+### 1. Prérequis
+- Python $\ge 3.11$
+- [`uv`](https://docs.astral.sh/uv/) (gestionnaire de dépendances et d'environnements virtuels)
+- Docker & Docker Compose (optionnel, pour le déploiement multi-conteneurs)
+
+### 2. Installation locale avec `uv`
+
+```bash
+# Installer toutes les dépendances (incluant dev, tests et MLOps)
+uv sync --all-extras
+
+# Vérifier la qualité du code (linting & formatage)
+uv run ruff check src/ tests/
+
+# Lancer la suite de tests
+uv run pytest -v
+```
+
+### 3. Lancer les services en local
+
+```bash
+# Lancer l'API FastAPI (http://localhost:8000/docs)
+uv run uvicorn anomalies_elec.api.main:app --reload --port 8000
+
+# Lancer le dashboard Streamlit (http://localhost:8501)
+uv run streamlit run src/anomalies_elec/dashboard/app.py
+
+# Lancer le serveur MLflow Tracking (http://localhost:5000)
+uv run mlflow ui --port 5000
+```
+
+### 4. Lancement complet via Docker Compose
+
+```bash
+docker compose up --build
+```
+- **API FastAPI (Swagger UI) :** `http://localhost:8000/docs`
+- **Dashboard Streamlit :** `http://localhost:8501`
+- **Serveur MLflow :** `http://localhost:5000`

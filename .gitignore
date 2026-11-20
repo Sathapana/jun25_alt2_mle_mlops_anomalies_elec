@@ -1,0 +1,33 @@
+# Python & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Testing & linting caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local data & MLOps artifacts
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+data/alerts/*
+!data/alerts/.gitkeep
+mlruns/
+mlartifacts/
+*.db
+*.duckdb
+
+# Environment variables & IDE
+.env
+.vscode/
+.idea/

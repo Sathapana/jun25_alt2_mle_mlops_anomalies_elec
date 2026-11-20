@@ -1,0 +1,41 @@
+project:
+  name: "anomalies-reseau-electrique"
+  version: "0.1.0"
+  default_scope: "national"
+  default_unique_id: "FR"
+  freq: "15min"
+  timezone: "Europe/Paris"
+
+ingestion:
+  base_url: "https://odre.opendatasoft.com/api/explore/v2.1/catalog/datasets"
+  datasets:
+    national_tr: "eco2mix-national-tr"
+    national_cons_def: "eco2mix-national-cons-def"
+    regional_tr: "eco2mix-regional-tr"
+    regional_cons_def: "eco2mix-regional-cons-def"
+  monthly_quota_limit: 50000
+  page_size: 100
+  min_consumption_mw: 15000.0
+  max_consumption_mw: 120000.0
+  max_frozen_steps: 4
+
+models:
+  weekly_lag_steps: 672          # 7 jours * 96 pas de 15 minutes
+  mstl_season_lengths: [96, 672] # Cycle journalier (96) et hebdomadaire (672)
+  prediction_interval_level: 99
+  ewma_span: 4                   # Lissage sur 1 heure (4 * 15 min)
+  z_search_min: 2.0
+  z_search_max: 10.0
+  z_search_steps: 33
+  pruning_min_decrease_p: 0.13   # Hundman et al. (KDD 2018)
+  alert_budget_per_week: 5
+
+storage:
+  data_dir: "data"
+  raw_subdir: "raw"
+  processed_subdir: "processed"
+  alerts_subdir: "alerts"
+
+monitoring:
+  wasserstein_drift_threshold: 0.15
+  psi_drift_threshold: 0.20
