@@ -30,7 +30,7 @@ flowchart LR
         ING["Client API & Quota Guard<br/>(50k appels/mois)"]
         DQ["Data Quality Gate<br/>(Schéma, trous, retards)"]
         CAL["Feature Eng. Calendrier<br/>(Fériés FR, vacances, DST)"]
-        PARQ[("Stockage Parquet Partitionné<br/>+ Requêtage DuckDB")]
+        PARQ[("Base PostgreSQL<br/>(Séries, Alertes, Qualifications)")]
     end
 
     subgraph P2 ["P2 — Modélisation & Détection (models)"]
@@ -41,14 +41,14 @@ flowchart LR
     end
 
     subgraph P3 ["P3 — MLOps, Orchestration & API (pipelines, api)"]
-        PREF["Flows Prefect<br/>(Ingestion 15m, Inférence, Retrain)"]
+        PREF["DAGs Airflow<br/>(Ingestion 15m, Inférence, Retrain)"]
         MLF[("MLflow Tracking<br/>& Model Registry")]
         API["Service FastAPI<br/>(/detect, /alerts, /qualify, /health)"]
     end
 
     subgraph P4 ["P4 — Observabilité & UI (monitoring, dashboard)"]
         EVID["Evidently Monitoring<br/>(Data Drift vs Concept Drift & Audit M+1)"]
-        STR["Dashboard Streamlit<br/>(Visualisation, Événements Réf., Qualification Humaine)"]
+        STR["Dashboard Grafana<br/>(Visualisation, Événements Réf., Suivi des Alertes)"]
     end
 
     ODS --> ING --> DQ
@@ -68,12 +68,12 @@ flowchart LR
 
 | Brique MLOps | Outil retenu | Rôle dans l'architecture |
 | :--- | :--- | :--- |
-| **Orchestration** | **Prefect** | Planification en Python natif des flux d'ingestion (15 min / 1 h), de détection et de réentraînement. |
-| **Stockage & Requêtage** | **Parquet + DuckDB** | Historisation partitionnée idempotente des séries temporelles et requêtage SQL analytique rapide sans serveur. |
+| **Orchestration** | **Apache Airflow** | Planification par DAGs des flux d'ingestion (15 min / 1 h), de détection et de réentraînement. |
+| **Stockage & Requêtage** | **PostgreSQL** | Historisation idempotente (upsert) des séries temporelles, des alertes et des qualifications ; accès concurrent sûr pour l'API, les workers Airflow et le dashboard. |
 | **Désaisonnalisation & Modèles** | **StatsForecast (Nixtla) + NumPy/SciPy** | Décomposition multi-saisonnière robuste (`MSTL`) et seuillage dynamique non paramétrique avec élagage (*Telemanom*). |
 | **Tracking & Registre** | **MLflow** | Suivi des expériences, versionnement des modèles et des hyperparamètres de seuillage, promotion en production. |
 | **API de Service** | **FastAPI** | Exposition REST des prédictions, de la liste des alertes et de la boucle de qualification humaine. |
-| **Dashboard & Qualification** | **Streamlit** | Visualisation temps réel, inspection sur événements de référence et interface de qualification des alertes. |
+| **Dashboard & Qualification** | **Grafana** | Visualisation temps réel branchée sur PostgreSQL, inspection sur événements de référence et suivi des alertes (la qualification passe par `POST /alerts/{id}/qualify`). |
 | **Observabilité & Drift** | **Evidently AI** | Contrôles de qualité des données, détection de dérive (Wasserstein / PSI) et audit différé Temps Réel vs Consolidé ($M+1$). |
 | **Packaging, Qualité & CI** | **uv + Ruff + Pytest + Docker** | Gestion reproductible des dépendances (`pyproject.toml`), linting/formatage, tests automatisés et conteneurisation. |
 
@@ -97,8 +97,8 @@ jun25_alt2_mle_mlops_anomalies_elec/
 │   └── alerts/                         # Historique des alertes et qualifications humaines
 ├── docker/
 │   ├── Dockerfile.api                  # Image du service FastAPI
-│   ├── Dockerfile.dashboard            # Image du dashboard Streamlit
-│   └── Dockerfile.worker               # Image du worker Prefect / jobs d'entraînement
+│   ├── Dockerfile.dashboard            # Image du dashboard (à remplacer par Grafana + provisioning)
+│   └── Dockerfile.worker               # Image du worker Airflow / jobs d'entraînement
 ├── docs/
 │   ├── anomalies-reseau-electrique.md  # Sujet et spécifications du projet
 │   └── revue-litterature.md            # Revue de littérature détaillée
@@ -110,7 +110,7 @@ jun25_alt2_mle_mlops_anomalies_elec/
 │       │   ├── eco2mix_client.py       # Client HTTP Opendatasoft v2.1 & gestion du quota (50k/mois)
 │       │   └── quality.py              # Validation du schéma, trous de publication, valeurs figées
 │       ├── storage/                    # [P1] Persistance idempotente
-│       │   └── parquet_store.py        # Écriture Parquet partitionnée & dédoublonnage SQL via DuckDB
+│       │   └── parquet_store.py        # Persistance idempotente (migration vers PostgreSQL prévue)
 │       ├── features/                   # [P1/P2] Calendrier & Prétraitement
 │       │   └── calendar_fr.py          # Jours fériés FR, ponts, vacances scolaires, changements d'heure (DST)
 │       ├── models/                     # [P2] Baselines, Désaisonnalisation & Seuillage
@@ -118,7 +118,7 @@ jun25_alt2_mle_mlops_anomalies_elec/
 │       │   ├── deseasonalize.py        # Désaisonnalisation multi-saisonnière MSTL (StatsForecast)
 │       │   ├── thresholding.py         # Lissage EWMA + seuillage non paramétrique + pruning (Hundman et al.)
 │       │   └── correlator.py           # [Niveau 2] Corrélation croisée avec décalage & déduplication inter-régions
-│       ├── pipelines/                  # [P3] Orchestration Prefect & Tracking MLflow
+│       ├── pipelines/                  # [P3] Orchestration Airflow & Tracking MLflow
 │       │   ├── ingest_flow.py          # Flow d'ingestion incrémentale + Data Quality Gate
 │       │   ├── train_flow.py           # Flow d'entraînement, évaluation et enregistrement MLflow
 │       │   └── detect_flow.py          # Flow d'inférence continue et génération d'alertes
@@ -129,7 +129,7 @@ jun25_alt2_mle_mlops_anomalies_elec/
 │       │   ├── drift.py                # Rapports Evidently (Data Quality, Data Drift vs Concept Drift)
 │       │   └── consolidated_audit.py   # [Niveau 3] Confrontation Temps Réel (TR) vs Consolidé (M+1)
 │       └── dashboard/                  # [P4] Interface Utilisateur
-│           └── app.py                  # Application Streamlit (Visualisation, Événements Réf., Qualification, Drift)
+│           └── app.py                  # Prototype Streamlit (remplacé à terme par des dashboards Grafana)
 ├── tests/                              # Suite de tests unitaires et d'intégration (pytest)
 ├── CADRAGE.md                          # Charte d'équipe (Tâches 1 & 2)
 ├── CONTRIBUTING.md                     # Guide de contribution et conventions de développement
@@ -153,7 +153,7 @@ L'architecture est conçue dès le départ autour du format tabulaire multi-sér
    - Extension aux 12 régions métropolitaines (`unique_id` par code région INSEE/RTE) au pas horaire (`season_length=[24, 168]`).
    - Exploitation multivariée (consommation, filières de production nucléaire/éolien/solaire/hydraulique, échanges aux frontières) et déduplication d'alertes entre régions limitrophes via `models/correlator.py`.
 3. **Niveau 3 — Boucle de rétroaction & observabilité avancée :**
-   - Qualification humaine des alertes via `POST /alerts/{id}/qualify` et le dashboard Streamlit pour ajuster le seuil d'élagage $p$ et suivre la précision opérationnelle dans le temps.
+   - Qualification humaine des alertes via `POST /alerts/{id}/qualify` et le dashboard Grafana pour ajuster le seuil d'élagage $p$ et suivre la précision opérationnelle dans le temps.
    - Distinction entre **régime saisonnier atypique** (*Data Drift* sur la consommation brute mais résidus stables vis-à-vis de la météo/prévision) et **dégradation du modèle** (*Concept Drift* sur les résidus) avec `monitoring/drift.py`.
    - Confrontation automatisée à $M+1$ entre les alertes émises sur le flux Temps Réel (`eco2mix-*-tr`) et les données définitives (`eco2mix-*-cons-def`) via `monitoring/consolidated_audit.py`.
 

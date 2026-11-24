@@ -10,16 +10,16 @@ Pour éviter les conflits Git et garantir une intégration fluide de bout en bou
 
 | Rôle | Modules principaux (`src/anomalies_elec/`) | Tests associés (`tests/`) | Responsabilités clés |
 | :--- | :--- | :--- | :--- |
-| **P1 — Data & Ingestion** | `ingestion/`, `storage/`, `features/calendar_fr.py` | `test_ingestion_quality.py` | Client API Opendatasoft, gestion du quota (50k appels/mois), contrôles *Data Quality*, stockage Parquet/DuckDB idempotent, calendrier français. |
+| **P1 — Data & Ingestion** | `ingestion/`, `storage/`, `features/calendar_fr.py` | `test_ingestion_quality.py` | Client API Opendatasoft, gestion du quota (50k appels/mois), contrôles *Data Quality*, stockage PostgreSQL idempotent, calendrier français. |
 | **P2 — Modélisation & Détection** | `models/`, `configs/reference_events.yaml` | `test_models_detection.py` | Baselines ($J-7$ et prévision RTE), désaisonnalisation MSTL (`StatsForecast`), seuillage dynamique non paramétrique + *pruning* (*Telemanom*), corrélation inter-séries (*Luminol*). |
-| **P3 — MLOps, Orchestration & API** | `pipelines/`, `api/`, `docker/`, `docker-compose.yml`, `.github/workflows/` | `test_api.py` | Flows Prefect (ingestion, entraînement, détection), tracking & registre MLflow, API REST FastAPI, conteneurisation Docker et CI/CD. |
-| **P4 — Observabilité & Dashboard** | `monitoring/`, `dashboard/` | `test_monitoring.py` | Rapports Evidently (Data Quality, Data Drift vs Concept Drift), audit différé Temps Réel vs Consolidé ($M+1$), interface Streamlit et boucle de qualification humaine. |
+| **P3 — MLOps, Orchestration & API** | `pipelines/`, `api/`, `docker/`, `docker-compose.yml`, `.github/workflows/` | `test_api.py` | DAGs Airflow (ingestion, entraînement, détection), tracking & registre MLflow, API REST FastAPI, conteneurisation Docker et CI/CD. |
+| **P4 — Observabilité & Dashboard** | `monitoring/`, `dashboard/` | `test_monitoring.py` | Rapports Evidently (Data Quality, Data Drift vs Concept Drift), audit différé Temps Réel vs Consolidé ($M+1$), dashboards Grafana et boucle de qualification humaine. |
 
 ---
 
 ## 2. Contrats de Données Inter-Modules (*Data Contracts*)
 
-Afin que les pôles P1, P2, P3 et P4 puissent développer indépendamment, tous les modules échangent des `pandas.DataFrame` (ou tables Parquet/DuckDB) respectant des schémas stricts.
+Afin que les pôles P1, P2, P3 et P4 puissent développer indépendamment, tous les modules échangent des `pandas.DataFrame` (ou tables PostgreSQL) respectant des schémas stricts.
 
 ### 2.1. Contrat de Série Temporelle (Sortie P1 $\to$ Entrée P2)
 Compatible nativement avec la convention `StatsForecast` (`unique_id`, `ds`, `y`) et enrichi des variables métier éCO2mix :
@@ -91,7 +91,7 @@ Ne jamais travailler directement sur `main` pour le développement des fonctionn
 - `feat/p1-eco2mix-ingestion`
 - `feat/p2-mstl-dynamic-threshold`
 - `feat/p3-fastapi-mlflow`
-- `feat/p4-streamlit-evidently`
+- `feat/p4-grafana-evidently`
 - `fix/p1-dst-timezone-handling`
 - `docs/update-cadrage`
 
