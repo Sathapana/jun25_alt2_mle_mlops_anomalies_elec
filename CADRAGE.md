@@ -45,14 +45,14 @@
 
 ### 2.1. Orchestrateur / Scheduler
 - [ ] **Prefect**
-- [ ] **Apache Airflow**
-- **Justification (1 ligne) :** `[À compléter — ex: Prefect choisi pour sa légèreté en Python natif et sa mise en place rapide vs Airflow]`
+- [x] **Apache Airflow**
+- **Justification (1 ligne) :** Airflow est enseigné dans notre programme et constitue la solution d'orchestration la plus répandue en entreprise.
 
 ### 2.2. Stockage des données (*Storage*)
 - [ ] **Parquet** (fichiers partitionnés / DuckDB)
-- [ ] **PostgreSQL** (ou TimescaleDB)
+- [x] **PostgreSQL** (ou TimescaleDB)
 - [ ] **Hybride** (Parquet pour l'historique analytique + Postgres pour les alertes/métadonnées)
-- **Justification (1 ligne) :** `[À compléter — ex: Parquet partitionné par date pour les séries temporelles éCO2mix, simple et sans serveur]`
+- **Justification (1 ligne) :** Plusieurs services (API, workers Airflow, dashboard) lisent et écrivent en même temps : PostgreSQL gère nativement la concurrence, alors que Parquet + DuckDB (verrou mono-écrivain) risque de se bloquer dans ce cas.
 
 ### 2.3. Suivi d'expériences & Registre de modèles (*Tracking*)
 - [x] **MLflow** *(imposé)*
@@ -64,8 +64,8 @@
 
 ### 2.5. Tableau de bord (*Dashboard*)
 - [ ] **Streamlit**
-- [ ] **Grafana**
-- **Justification (1 ligne) :** `[À compléter — ex: Streamlit pour prototyper rapidement l'interface de qualification humaine des alertes]`
+- [x] **Grafana**
+- **Justification (1 ligne) :** Grafana est plus professionnel et largement utilisé en entreprise ; il se branche directement sur PostgreSQL comme source de données.
 
 ---
 
