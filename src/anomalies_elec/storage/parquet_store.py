@@ -91,11 +91,7 @@ class ParquetStore:
         else:
             combined = incoming
 
-        deduped = (
-            combined.drop_duplicates(subset=["alert_id"], keep="last")
-            .sort_values("ds")
-            .reset_index(drop=True)
-        )
+        deduped = combined.drop_duplicates(subset=["alert_id"], keep="last").sort_values("ds").reset_index(drop=True)
         deduped.to_parquet(path, index=False)
         return path
 

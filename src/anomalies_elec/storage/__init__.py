@@ -1,1 +1,1 @@
-"""Pôle P1 — Stockage Parquet partitionné et requêtage analytique DuckDB."""
+"""Pôle P1 — Stockage : interface commune (`base.get_store`), backends Parquet/DuckDB et PostgreSQL."""

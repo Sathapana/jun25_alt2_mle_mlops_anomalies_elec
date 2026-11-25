@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, Field
@@ -49,6 +49,9 @@ class ModelsConfig(BaseModel):
 
 
 class StorageConfig(BaseModel):
+    # "parquet" : fichiers locaux (dev / tests) — "postgres" : base partagée des services Docker
+    backend: Literal["parquet", "postgres"] = "parquet"
+    database_url: str = "postgresql+psycopg://anomalies:anomalies@localhost:5432/anomalies"
     data_dir: Path = Path("data")
     raw_subdir: str = "raw"
     processed_subdir: str = "processed"
@@ -70,14 +73,29 @@ class AppConfig(BaseModel):
 
 def load_config(config_path: str | Path | None = None) -> AppConfig:
     """Charge la configuration depuis un fichier YAML ou utilise les valeurs par défaut."""
-    resolved_path = Path(
-        config_path or os.environ.get("ANOMALIES_ELEC_CONFIG_PATH", "configs/default.yaml")
-    )
+    resolved_path = Path(config_path or os.environ.get("ANOMALIES_ELEC_CONFIG_PATH", "configs/default.yaml"))
     if resolved_path.exists():
         with resolved_path.open("r", encoding="utf-8") as f:
             raw_data: dict[str, Any] = yaml.safe_load(f) or {}
-        return AppConfig.model_validate(raw_data)
-    return AppConfig()
+        cfg = AppConfig.model_validate(raw_data)
+    else:
+        cfg = AppConfig()
+    return _apply_env_overrides(cfg)
+
+
+def _apply_env_overrides(cfg: AppConfig) -> AppConfig:
+    """Les variables d'environnement (docker-compose, .env) priment sur le YAML pour le stockage."""
+    storage_updates: dict[str, Any] = {}
+    if backend := os.environ.get("STORAGE_BACKEND"):
+        storage_updates["backend"] = backend
+    if database_url := os.environ.get("DATABASE_URL"):
+        storage_updates["database_url"] = database_url
+    if data_dir := os.environ.get("DATA_DIR"):
+        storage_updates["data_dir"] = data_dir
+    if not storage_updates:
+        return cfg
+    storage = StorageConfig.model_validate({**cfg.storage.model_dump(), **storage_updates})
+    return cfg.model_copy(update={"storage": storage})
 
 
 def load_reference_events(path: str | Path = "configs/reference_events.yaml") -> list[dict[str, Any]]:

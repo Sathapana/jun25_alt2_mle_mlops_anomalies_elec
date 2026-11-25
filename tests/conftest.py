@@ -7,6 +7,13 @@ import pandas as pd
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _isolate_storage_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Empêche un `.env` ou un shell de dev (STORAGE_BACKEND=postgres, ...) de fuiter dans les tests."""
+    for var in ("STORAGE_BACKEND", "DATABASE_URL", "DATA_DIR"):
+        monkeypatch.delenv(var, raising=False)
+
+
 @pytest.fixture()
 def synthetic_eco2mix_df() -> pd.DataFrame:
     """Génère 3 jours de consommation nationale au pas de 15 minutes (288 points) avec un pic anormal."""

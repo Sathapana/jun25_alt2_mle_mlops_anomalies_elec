@@ -67,11 +67,7 @@ class MultiSeasonalDeseasonalizer:
         for _, group in df.groupby("unique_id", group_keys=False):
             g = group.copy()
             # Tendance robuste par médiane glissante centrée
-            trend = (
-                g["y"]
-                .rolling(window=primary_period, min_periods=1, center=True)
-                .median()
-            )
+            trend = g["y"].rolling(window=primary_period, min_periods=1, center=True).median()
             detrended = g["y"] - trend
 
             # Composante saisonnière périodique robuste (médiane par pas du cycle)

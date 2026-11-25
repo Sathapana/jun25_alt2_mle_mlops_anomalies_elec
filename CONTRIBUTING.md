@@ -10,16 +10,19 @@ Pour éviter les conflits Git et garantir une intégration fluide de bout en bou
 
 | Rôle | Modules principaux (`src/anomalies_elec/`) | Tests associés (`tests/`) | Responsabilités clés |
 | :--- | :--- | :--- | :--- |
-| **P1 — Data & Ingestion** | `ingestion/`, `storage/`, `features/calendar_fr.py` | `test_ingestion_quality.py` | Client API Opendatasoft, gestion du quota (50k appels/mois), contrôles *Data Quality*, stockage PostgreSQL idempotent, calendrier français. |
+| **P1 — Data & Ingestion** | `ingestion/`, `storage/`, `features/calendar_fr.py`, `docker/postgres/init/` | `test_ingestion_quality.py`, `test_storage.py` | Client API Opendatasoft, gestion du quota (50k appels/mois), contrôles *Data Quality*, stockage PostgreSQL idempotent, calendrier français. |
 | **P2 — Modélisation & Détection** | `models/`, `configs/reference_events.yaml` | `test_models_detection.py` | Baselines ($J-7$ et prévision RTE), désaisonnalisation MSTL (`StatsForecast`), seuillage dynamique non paramétrique + *pruning* (*Telemanom*), corrélation inter-séries (*Luminol*). |
-| **P3 — MLOps, Orchestration & API** | `pipelines/`, `api/`, `docker/`, `docker-compose.yml`, `.github/workflows/` | `test_api.py` | DAGs Airflow (ingestion, entraînement, détection), tracking & registre MLflow, API REST FastAPI, conteneurisation Docker et CI/CD. |
-| **P4 — Observabilité & Dashboard** | `monitoring/`, `dashboard/` | `test_monitoring.py` | Rapports Evidently (Data Quality, Data Drift vs Concept Drift), audit différé Temps Réel vs Consolidé ($M+1$), dashboards Grafana et boucle de qualification humaine. |
+| **P3 — MLOps, Orchestration & API** | `pipelines/`, `api/`, `dags/`, `docker/`, `docker-compose.yml`, `.github/workflows/` | `test_api.py` | DAGs Airflow (ingestion, entraînement, détection), tracking & registre MLflow, API REST FastAPI, conteneurisation Docker et CI/CD. |
+| **P4 — Observabilité & Dashboard** | `monitoring/`, `grafana/` | `test_monitoring.py` (à créer) | Rapports Evidently (Data Quality, Data Drift vs Concept Drift), audit différé Temps Réel vs Consolidé ($M+1$), dashboards Grafana et boucle de qualification humaine. |
 
 ---
 
 ## 2. Contrats de Données Inter-Modules (*Data Contracts*)
 
 Afin que les pôles P1, P2, P3 et P4 puissent développer indépendamment, tous les modules échangent des `pandas.DataFrame` (ou tables PostgreSQL) respectant des schémas stricts.
+
+- **Schéma de référence en base :** [`docker/postgres/init/01_schema.sql`](docker/postgres/init/01_schema.sql) (tables `series`, `alerts`, `monitoring_metrics`). Toute modification passe par une PR relue par les pôles concernés.
+- **Accès au stockage :** toujours via `anomalies_elec.storage.base.get_store(cfg.storage)`, jamais en instanciant directement `ParquetStore` / `PostgresStore`. Le backend est choisi par `storage.backend` (ou `STORAGE_BACKEND`).
 
 ### 2.1. Contrat de Série Temporelle (Sortie P1 $\to$ Entrée P2)
 Compatible nativement avec la convention `StatsForecast` (`unique_id`, `ds`, `y`) et enrichi des variables métier éCO2mix :
@@ -55,6 +58,11 @@ Compatible nativement avec la convention `StatsForecast` (`unique_id`, `ds`, `y`
 | `is_anomaly` | `bool` | `True` si la séquence franchit $\epsilon^*$ **et** survit à l'élagage (*pruning*) |
 | `detector_name` | `str` | Nom et version du détecteur (`"baseline_j7"`, `"baseline_rte"`, `"mstl_telemanom_v1"`) |
 | `qualification` | `str \| None` | Qualification humaine Niveau 3 (`None`, `"true_positive"`, `"false_positive"`, `"seasonal_regime"`, `"sensor_fault"`) |
+| `qualification_comment` | `str \| None` | Commentaire libre de l'opérateur |
+| `qualified_by` | `str \| None` | Identifiant de l'opérateur ayant qualifié l'alerte |
+| `qualified_at` | `datetime64[ns, UTC] \| None` | Horodatage de la qualification (renseigné par l'API) |
+
+> La qualification se fait **uniquement via l'API** (`POST /alerts/{alert_id}/qualify`) ; Grafana affiche les alertes en lecture seule.
 
 ---
 
@@ -64,23 +72,40 @@ Le projet utilise **[`uv`](https://docs.astral.sh/uv/)** pour la gestion des dé
 
 ### Installation initiale
 ```bash
-# Cloner le dépôt et installer l'environnement complet
+# Cloner le dépôt et installer l'environnement complet (Python 3.11 via .python-version)
 uv sync --all-extras
+
+# Installer les hooks pre-commit (ruff check/format, fins de ligne, YAML/JSON/TOML, clés privées)
+uv run pre-commit install
 ```
+
+> - **Fins de ligne :** `.gitattributes` impose LF pour tous les fichiers texte, quel que soit l'OS ou le réglage `core.autocrlf`. Ne pas le contourner : des fichiers CRLF montés dans les conteneurs Linux (DAGs, SQL, scripts) peuvent casser.
+> - **Version de Python :** 3.11 partout (`.python-version`, images Docker, CI). Ne pas ajouter de syntaxe ou de dépendance exigeant une version plus récente.
 
 ### Commandes quotidiennes
 ```bash
 # 1. Vérifier le style et les imports (obligatoire avant tout commit)
-uv run ruff check src/ tests/
-uv run ruff format --check src/ tests/
+uv run ruff check src/ tests/ dags/
+uv run ruff format --check src/ tests/ dags/
 
 # 2. Corriger automatiquement le formatage et les erreurs simples de lint
-uv run ruff check --fix src/ tests/
-uv run ruff format src/ tests/
+uv run ruff check --fix src/ tests/ dags/
+uv run ruff format src/ tests/ dags/
 
 # 3. Exécuter les tests unitaires et d'intégration avec couverture
 uv run pytest -v --cov=anomalies_elec
+
+# 4. Lancer tous les hooks pre-commit sur l'ensemble du dépôt (fichiers suivis par Git)
+uv run pre-commit run --all-files
 ```
+
+### Travailler avec Docker Compose
+| Vous avez modifié… | Action nécessaire |
+| :--- | :--- |
+| `dags/*.py` | Rien : le dossier est monté dans les conteneurs Airflow (prise en compte en ~30 s) |
+| `src/`, `configs/`, `pyproject.toml`, `uv.lock` | `docker compose up --build -d` (le code est copié dans les images au build) |
+| `grafana/dashboards/*.json` | Rien : rechargé automatiquement par Grafana (~30 s) |
+| `docker/postgres/init/*.sql` | `docker compose down -v` puis `docker compose up -d` (⚠️ efface les données locales) |
 
 ---
 
@@ -107,7 +132,7 @@ Nous utilisons la convention **Conventional Commits** :
 
 ### 4.3. Critères d'acceptation d'une Pull Request (*Definition of Done*)
 Avant de merger une branche dans `main` :
-1. **Zéro erreur Ruff :** `uv run ruff check src/ tests/` passe sans avertissement.
+1. **Zéro erreur Ruff :** `uv run ruff check src/ tests/ dags/` et `uv run ruff format --check src/ tests/ dags/` passent (vérifiés par pre-commit et par la CI).
 2. **Tests au vert :** `uv run pytest` passe à 100%, et toute nouvelle brique métier (P1, P2, P3, P4) inclut son test unitaire sur données synthétiques (ne dépendant pas d'un appel réseau réel à l'API Opendatasoft dans la CI).
 3. **Configuration externalisée :** Aucun chemin local en dur, aucune clé ou seuil critique codé en dur dans `src/` — utiliser `configs/default.yaml` et `src/anomalies_elec/config.py`.
 4. **Respect du quota API :** Les tests automatisés doivent mocker les appels HTTP vers `odre.opendatasoft.com` afin de préserver le quota mensuel de 50 000 appels.

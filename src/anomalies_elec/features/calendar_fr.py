@@ -51,9 +51,7 @@ def enrich_french_calendar(
 
     # Aussi détecter si plusieurs offsets coexistent sur la même date locale
     offsets_per_day = (
-        pd.DataFrame({"local_date": local_dates, "offset": utc_offsets})
-        .groupby("local_date")["offset"]
-        .nunique()
+        pd.DataFrame({"local_date": local_dates, "offset": utc_offsets}).groupby("local_date")["offset"].nunique()
     )
     dst_dates = set(offsets_per_day[offsets_per_day > 1].index).union(
         set(day_offsets.loc[day_offsets["offset_changed"], "local_date"])

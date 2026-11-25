@@ -31,6 +31,10 @@ models:
   alert_budget_per_week: 5
 
 storage:
+  # "parquet" (défaut, local & tests) ou "postgres" (une fois PostgresStore implémenté par P1).
+  # Surchargeable par les variables d'environnement STORAGE_BACKEND / DATABASE_URL / DATA_DIR.
+  backend: "parquet"
+  database_url: "postgresql+psycopg://anomalies:anomalies@localhost:5432/anomalies"
   data_dir: "data"
   raw_subdir: "raw"
   processed_subdir: "processed"

@@ -1,0 +1,15 @@
+# Fins de ligne normalisées en LF pour tous les fichiers texte, quel que soit l'OS
+# (Windows / macOS / Linux) et le réglage core.autocrlf de chacun.
+# Indispensable pour les fichiers montés ou copiés dans les conteneurs Linux
+# (DAGs, scripts SQL, YAML, Dockerfiles, scripts shell).
+* text=auto eol=lf
+
+# Fichiers binaires : jamais de conversion
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.pdf    binary
+*.parquet binary
+*.duckdb binary

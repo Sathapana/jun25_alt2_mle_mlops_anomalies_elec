@@ -23,9 +23,7 @@ class Eco2MixClient:
 
     def _check_and_increment_quota(self) -> None:
         if self.api_calls_used >= self.config.monthly_quota_limit:
-            raise QuotaExceededError(
-                f"Quota mensuel Opendatasoft atteint ({self.config.monthly_quota_limit} appels)."
-            )
+            raise QuotaExceededError(f"Quota mensuel Opendatasoft atteint ({self.config.monthly_quota_limit} appels).")
         self.api_calls_used += 1
 
     def fetch_records(
@@ -61,9 +59,7 @@ class Eco2MixClient:
     ) -> pd.DataFrame:
         """Transforme les dictionnaires JSON Opendatasoft au schéma standardisé P1 -> P2."""
         if not records:
-            return pd.DataFrame(
-                columns=["unique_id", "ds", "y", "prevision_j1", "prevision_j"]
-            )
+            return pd.DataFrame(columns=["unique_id", "ds", "y", "prevision_j1", "prevision_j"])
 
         raw_df = pd.DataFrame(records)
         df = pd.DataFrame()

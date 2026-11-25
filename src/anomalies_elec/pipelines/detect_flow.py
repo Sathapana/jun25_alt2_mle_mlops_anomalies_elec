@@ -1,4 +1,4 @@
-"""Pipeline de détection continue et persistance des alertes dans le store Parquet."""
+"""Pipeline de détection continue et persistance des alertes via le backend de stockage configuré."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import pandas as pd
 
 from anomalies_elec.config import AppConfig, load_config
 from anomalies_elec.pipelines.train_flow import evaluate_detector
-from anomalies_elec.storage.parquet_store import ParquetStore
+from anomalies_elec.storage.base import get_store
 
 
 def run_detection_pipeline(
@@ -21,7 +21,7 @@ def run_detection_pipeline(
 
     alerts_df = scored_df.loc[scored_df["is_anomaly"]].copy()
     if persist_alerts and not alerts_df.empty:
-        store = ParquetStore(cfg.storage.data_dir)
+        store = get_store(cfg.storage)
         store.upsert_alerts(alerts_df)
 
     return scored_df
