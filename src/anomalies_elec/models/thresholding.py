@@ -90,9 +90,7 @@ class DynamicThresholdDetector:
                 in_seq = False
                 sequences.append((start_idx, i, float(np.max(ewma_errors[start_idx:i]))))
         if in_seq:
-            sequences.append(
-                (start_idx, len(ewma_errors), float(np.max(ewma_errors[start_idx:])))
-            )
+            sequences.append((start_idx, len(ewma_errors), float(np.max(ewma_errors[start_idx:]))))
 
         normal_vals = ewma_errors[~above]
         max_non_anom = float(np.max(normal_vals)) if len(normal_vals) > 0 else eps
@@ -138,10 +136,7 @@ class DynamicThresholdDetector:
             g["threshold_eps"] = eps
             g["anomaly_score"] = np.where(eps > 0, ewma_arr / eps, 0.0)
             g["is_anomaly"] = is_anom
-            g["alert_id"] = [
-                f"{uid}_{ts.strftime('%Y%m%dT%H%M%SZ')}"
-                for ts in pd.to_datetime(g["ds"], utc=True)
-            ]
+            g["alert_id"] = [f"{uid}_{ts.strftime('%Y%m%dT%H%M%SZ')}" for ts in pd.to_datetime(g["ds"], utc=True)]
             if "qualification" not in g.columns:
                 g["qualification"] = None
             results.append(g)

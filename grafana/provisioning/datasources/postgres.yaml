@@ -1,0 +1,20 @@
+# Source de données provisionnée automatiquement au démarrage de Grafana.
+# Les variables $POSTGRES_* sont injectées par docker-compose.yml.
+apiVersion: 1
+
+datasources:
+  - name: anomalies-postgres
+    uid: anomalies-postgres
+    type: grafana-postgresql-datasource
+    access: proxy
+    url: postgres:5432
+    user: $POSTGRES_USER
+    isDefault: true
+    editable: false
+    jsonData:
+      database: $POSTGRES_DB
+      sslmode: disable
+      postgresVersion: 1600
+      timescaledb: false
+    secureJsonData:
+      password: $POSTGRES_PASSWORD

@@ -1,0 +1,75 @@
+{
+  "uid": "anomalies-overview",
+  "title": "Vue d'ensemble — éCO2mix (squelette P4)",
+  "description": "Dashboard de départ provisionné depuis grafana/dashboards/overview.json. À enrichir par P4.",
+  "tags": ["eco2mix", "anomalies"],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "timezone": "Europe/Paris",
+  "time": { "from": "now-7d", "to": "now" },
+  "refresh": "5m",
+  "templating": {
+    "list": [
+      {
+        "name": "unique_id",
+        "label": "Série",
+        "type": "query",
+        "datasource": { "type": "grafana-postgresql-datasource", "uid": "anomalies-postgres" },
+        "query": "SELECT DISTINCT unique_id FROM series ORDER BY 1",
+        "refresh": 1,
+        "current": { "text": "FR", "value": "FR" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Consommation vs prévision RTE (MW)",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 9 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "anomalies-postgres" },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT ds AS time, y AS consommation, prevision_j AS prevision_j\nFROM series\nWHERE source = 'national_tr' AND unique_id = '$unique_id' AND $__timeFilter(ds)\nORDER BY ds"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Alertes sur la période",
+      "gridPos": { "x": 0, "y": 9, "w": 6, "h": 6 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "anomalies-postgres" },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT count(*) AS alertes\nFROM alerts\nWHERE unique_id = '$unique_id' AND $__timeFilter(ds)"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "Dernières alertes (qualification via POST /alerts/{alert_id}/qualify)",
+      "gridPos": { "x": 6, "y": 9, "w": 18, "h": 12 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "anomalies-postgres" },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT ds, alert_id, detector_name, y, y_hat, anomaly_score, quality_flag, qualification, qualified_by\nFROM alerts\nWHERE unique_id = '$unique_id' AND $__timeFilter(ds)\nORDER BY ds DESC\nLIMIT 100"
+        }
+      ]
+    }
+  ]
+}

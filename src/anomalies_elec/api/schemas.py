@@ -42,6 +42,9 @@ class AlertItem(BaseModel):
     detector_name: str
     quality_flag: str = "OK"
     qualification: str | None = None
+    qualification_comment: str | None = None
+    qualified_by: str | None = None
+    qualified_at: datetime | None = None
 
 
 class DetectResponse(BaseModel):
@@ -53,3 +56,4 @@ class DetectResponse(BaseModel):
 class QualifyAlertRequest(BaseModel):
     qualification: QualificationLabel
     comment: str | None = None
+    qualified_by: str | None = Field(default=None, description="Identifiant de l'opérateur qui qualifie l'alerte")

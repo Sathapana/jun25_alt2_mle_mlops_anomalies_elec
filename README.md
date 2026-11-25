@@ -87,21 +87,28 @@ L'architecture du code source sous `src/anomalies_elec/` est découpée selon le
 jun25_alt2_mle_mlops_anomalies_elec/
 ├── .github/
 │   └── workflows/
-│       └── ci.yml                      # Pipeline CI : linting (ruff) + tests (pytest)
+│       └── ci.yml                      # Pipeline CI : linting (ruff) + tests (pytest) + validation docker compose
 ├── configs/
 │   ├── default.yaml                    # Configuration globale (API URLs, fenêtres MSTL, budget d'alertes)
 │   └── reference_events.yaml           # Événements historiques de référence (vagues de froid, canicules, fériés, grèves)
-├── data/                               # Données locales (ignorées par Git)
-│   ├── raw/                            # Parquet partitionné brut (source=tr|cons_def/scope=national|regional/...)
+├── dags/                               # [P3] DAGs Airflow (squelettes : ingestion, détection, entraînement)
+├── data/                               # Données locales du backend Parquet (ignorées par Git)
+│   ├── raw/
 │   ├── processed/                      # Séries enrichies (calendrier FR, résidus désaisonnalisés)
 │   └── alerts/                         # Historique des alertes et qualifications humaines
 ├── docker/
 │   ├── Dockerfile.api                  # Image du service FastAPI
-│   ├── Dockerfile.dashboard            # Image du dashboard (à remplacer par Grafana + provisioning)
-│   └── Dockerfile.worker               # Image du worker Airflow / jobs d'entraînement
+│   ├── Dockerfile.airflow              # Image Airflow 3 + virtualenv projet (/opt/anomalies-venv)
+│   ├── Dockerfile.mlflow               # Serveur MLflow 3 + driver PostgreSQL
+│   └── postgres/init/
+│       ├── 00_databases.sql            # Bases techniques : mlflow, airflow
+│       └── 01_schema.sql               # Contrat de données partagé : tables series, alerts, monitoring_metrics
 ├── docs/
 │   ├── anomalies-reseau-electrique.md  # Sujet et spécifications du projet
 │   └── revue-litterature.md            # Revue de littérature détaillée
+├── grafana/                            # [P4] Grafana provisionné as-code
+│   ├── provisioning/                   # Source de données PostgreSQL + chargement des dashboards
+│   └── dashboards/overview.json        # Dashboard de départ (séries, alertes)
 ├── src/
 │   └── anomalies_elec/
 │       ├── __init__.py
@@ -110,7 +117,9 @@ jun25_alt2_mle_mlops_anomalies_elec/
 │       │   ├── eco2mix_client.py       # Client HTTP Opendatasoft v2.1 & gestion du quota (50k/mois)
 │       │   └── quality.py              # Validation du schéma, trous de publication, valeurs figées
 │       ├── storage/                    # [P1] Persistance idempotente
-│       │   └── parquet_store.py        # Persistance idempotente (migration vers PostgreSQL prévue)
+│       │   ├── base.py                 # Interface commune `Store` + `get_store()` (choix du backend)
+│       │   ├── parquet_store.py        # Backend Parquet/DuckDB (dev local & tests, backend par défaut)
+│       │   └── postgres_store.py       # Backend PostgreSQL (squelette, à implémenter par P1)
 │       ├── features/                   # [P1/P2] Calendrier & Prétraitement
 │       │   └── calendar_fr.py          # Jours fériés FR, ponts, vacances scolaires, changements d'heure (DST)
 │       ├── models/                     # [P2] Baselines, Désaisonnalisation & Seuillage
@@ -118,18 +127,16 @@ jun25_alt2_mle_mlops_anomalies_elec/
 │       │   ├── deseasonalize.py        # Désaisonnalisation multi-saisonnière MSTL (StatsForecast)
 │       │   ├── thresholding.py         # Lissage EWMA + seuillage non paramétrique + pruning (Hundman et al.)
 │       │   └── correlator.py           # [Niveau 2] Corrélation croisée avec décalage & déduplication inter-régions
-│       ├── pipelines/                  # [P3] Orchestration Airflow & Tracking MLflow
-│       │   ├── ingest_flow.py          # Flow d'ingestion incrémentale + Data Quality Gate
-│       │   ├── train_flow.py           # Flow d'entraînement, évaluation et enregistrement MLflow
-│       │   └── detect_flow.py          # Flow d'inférence continue et génération d'alertes
+│       ├── pipelines/                  # [P3] Logique des pipelines, appelée par les DAGs Airflow
+│       │   ├── ingest_flow.py          # Ingestion incrémentale + Data Quality Gate
+│       │   ├── train_flow.py           # Entraînement, évaluation et enregistrement MLflow
+│       │   └── detect_flow.py          # Inférence continue et génération d'alertes
 │       ├── api/                        # [P3] Exposition REST
 │       │   ├── main.py                 # Application FastAPI (/health, /detect, /alerts, /alerts/{id}/qualify)
 │       │   └── schemas.py              # Schémas Pydantic de validation d'entrées/sorties
-│       ├── monitoring/                 # [P4] Observabilité & Dérive
-│       │   ├── drift.py                # Rapports Evidently (Data Quality, Data Drift vs Concept Drift)
-│       │   └── consolidated_audit.py   # [Niveau 3] Confrontation Temps Réel (TR) vs Consolidé (M+1)
-│       └── dashboard/                  # [P4] Interface Utilisateur
-│           └── app.py                  # Prototype Streamlit (remplacé à terme par des dashboards Grafana)
+│       └── monitoring/                 # [P4] Observabilité & Dérive (métriques écrites dans monitoring_metrics)
+│           ├── drift.py                # Data Drift vs Concept Drift (Evidently / Wasserstein)
+│           └── consolidated_audit.py   # [Niveau 3] Confrontation Temps Réel (TR) vs Consolidé (M+1)
 ├── tests/                              # Suite de tests unitaires et d'intégration (pytest)
 ├── CADRAGE.md                          # Charte d'équipe (Tâches 1 & 2)
 ├── CONTRIBUTING.md                     # Guide de contribution et conventions de développement
@@ -162,9 +169,8 @@ L'architecture est conçue dès le départ autour du format tabulaire multi-sér
 ## Démarrage Rapide
 
 ### 1. Prérequis
-- Python $\ge 3.11$
-- [`uv`](https://docs.astral.sh/uv/) (gestionnaire de dépendances et d'environnements virtuels)
-- Docker & Docker Compose (optionnel, pour le déploiement multi-conteneurs)
+- [`uv`](https://docs.astral.sh/uv/) (gestionnaire de dépendances et d'environnements virtuels) — il installe lui-même **Python 3.11**, version fixée par `.python-version` (identique aux images Docker et à la CI)
+- Docker Desktop / Docker Compose (pour l'environnement complet)
 
 ### 2. Installation locale avec `uv`
 
@@ -172,31 +178,42 @@ L'architecture est conçue dès le départ autour du format tabulaire multi-sér
 # Installer toutes les dépendances (incluant dev, tests et MLOps)
 uv sync --all-extras
 
+# Activer les hooks Git (ruff, fins de ligne, YAML...) — une seule fois par clone
+uv run pre-commit install
+
 # Vérifier la qualité du code (linting & formatage)
-uv run ruff check src/ tests/
+uv run ruff check src/ tests/ dags/
 
 # Lancer la suite de tests
 uv run pytest -v
 ```
 
-### 3. Lancer les services en local
+### 3. Lancer l'API seule en local (backend Parquet, sans Docker)
 
 ```bash
-# Lancer l'API FastAPI (http://localhost:8000/docs)
+# API FastAPI (http://localhost:8000/docs) — stockage dans ./data
 uv run uvicorn anomalies_elec.api.main:app --reload --port 8000
-
-# Lancer le dashboard Streamlit (http://localhost:8501)
-uv run streamlit run src/anomalies_elec/dashboard/app.py
-
-# Lancer le serveur MLflow Tracking (http://localhost:5000)
-uv run mlflow ui --port 5000
 ```
 
 ### 4. Lancement complet via Docker Compose
 
 ```bash
-docker compose up --build
+cp .env.example .env          # optionnel : des valeurs par défaut de dev sont prévues
+docker compose up --build -d
+docker compose ps             # airflow-init doit être "exited (0)", les autres "running"/"healthy"
 ```
-- **API FastAPI (Swagger UI) :** `http://localhost:8000/docs`
-- **Dashboard Streamlit :** `http://localhost:8501`
-- **Serveur MLflow :** `http://localhost:5000`
+
+| Service | URL | Identifiants (dev) |
+| :--- | :--- | :--- |
+| API FastAPI (Swagger UI) | `http://localhost:8000/docs` | — |
+| Airflow 3 | `http://localhost:8080` | aucun (SimpleAuthManager, tout le monde admin en local) |
+| MLflow | `http://localhost:5000` | — |
+| Grafana | `http://localhost:3000` | `admin` / `admin` |
+| PostgreSQL | `localhost:5432` | `anomalies` / `anomalies` (bases `anomalies`, `mlflow`, `airflow`) |
+
+> [!NOTE]
+> - Le stockage reste sur le backend **Parquet** (`STORAGE_BACKEND=parquet`) tant que `PostgresStore` n'est pas implémenté par P1 ; les tables PostgreSQL sont déjà créées et visibles dans Grafana.
+> - Les scripts `docker/postgres/init/*.sql` ne s'exécutent qu'à la création du volume : après une modification du schéma, `docker compose down -v` (⚠️ efface les données locales).
+> - Les DAGs Airflow sont en pause à leur création ; les squelettes ne font qu'une vérification d'environnement.
+> - **Après une modification de `src/`, `configs/`, `pyproject.toml` ou `uv.lock`, reconstruire les images :** `docker compose up --build -d`. Le code est copié dans les images API et Airflow au build : sans `--build`, les conteneurs exécutent l'ancienne version. Seul `dags/` est monté en direct (modifications prises en compte sans rebuild).
+> - **Qualification humaine :** Grafana est en lecture seule ; les alertes se qualifient via `POST /alerts/{alert_id}/qualify` (Swagger UI).

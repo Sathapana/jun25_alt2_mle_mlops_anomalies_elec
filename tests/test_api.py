@@ -59,10 +59,18 @@ def test_detect_and_qualify_alert_flow(
     # Qualification humaine de l'alerte (Niveau 3)
     qual_resp = api_client.post(
         f"/alerts/{alert_id}/qualify",
-        json={"qualification": "true_positive", "comment": "Pic validé par l'opérateur"},
+        json={
+            "qualification": "true_positive",
+            "comment": "Pic validé par l'opérateur",
+            "qualified_by": "operateur-test",
+        },
     )
     assert qual_resp.status_code == 200
-    assert qual_resp.json()["qualification"] == "true_positive"
+    qualified = qual_resp.json()
+    assert qualified["qualification"] == "true_positive"
+    assert qualified["qualification_comment"] == "Pic validé par l'opérateur"
+    assert qualified["qualified_by"] == "operateur-test"
+    assert qualified["qualified_at"] is not None
 
     # Vérification via GET /alerts
     list_resp = api_client.get("/alerts")

@@ -1,1 +1,1 @@
-"""Pôle P3 — Orchestration des flux Prefect (ingestion, entraînement, détection)."""
+"""Pôle P3 — Logique des pipelines (ingestion, entraînement, détection), orchestrée par les DAGs Airflow de `dags/`."""

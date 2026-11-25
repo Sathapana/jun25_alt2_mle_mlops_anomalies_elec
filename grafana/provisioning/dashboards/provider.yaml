@@ -1,0 +1,14 @@
+# Charge tous les dashboards JSON versionnés dans grafana/dashboards/ (monté en lecture seule).
+# Workflow P4 : éditer dans l'UI Grafana -> "Export as JSON" -> remplacer le fichier dans grafana/dashboards/.
+apiVersion: 1
+
+providers:
+  - name: anomalies-elec
+    folder: Anomalies éCO2mix
+    type: file
+    disableDeletion: true
+    allowUiUpdates: true
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards
+      foldersFromFilesStructure: false

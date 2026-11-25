@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 
@@ -16,7 +18,7 @@ from anomalies_elec.config import load_config
 from anomalies_elec.features.calendar_fr import enrich_french_calendar
 from anomalies_elec.ingestion.quality import apply_quality_checks
 from anomalies_elec.pipelines.detect_flow import run_detection_pipeline
-from anomalies_elec.storage.parquet_store import ParquetStore
+from anomalies_elec.storage.base import get_store
 
 app = FastAPI(
     title="éCO2mix Anomaly Detection API",
@@ -35,9 +37,15 @@ def health() -> dict[str, str]:
     }
 
 
+def _optional(row: pd.Series, column: str) -> object | None:
+    value = row.get(column)
+    return None if value is None or pd.isna(value) else value
+
+
 def _row_to_alert_item(row: pd.Series) -> AlertItem:
-    raw_qual = row.get("qualification")
-    qual = None if pd.isna(raw_qual) else str(raw_qual)
+    qual = _optional(row, "qualification")
+    comment = _optional(row, "qualification_comment")
+    qualified_by = _optional(row, "qualified_by")
     return AlertItem(
         alert_id=str(row["alert_id"]),
         unique_id=str(row["unique_id"]),
@@ -51,7 +59,10 @@ def _row_to_alert_item(row: pd.Series) -> AlertItem:
         is_anomaly=bool(row["is_anomaly"]),
         detector_name=str(row["detector_name"]),
         quality_flag=str(row.get("quality_flag", "OK")),
-        qualification=qual,
+        qualification=None if qual is None else str(qual),
+        qualification_comment=None if comment is None else str(comment),
+        qualified_by=None if qualified_by is None else str(qualified_by),
+        qualified_at=_optional(row, "qualified_at"),
     )
 
 
@@ -81,7 +92,7 @@ def detect_anomalies(payload: DetectRequest) -> DetectResponse:
 @app.get("/alerts", response_model=list[AlertItem])
 def list_alerts(unique_id: str | None = None) -> list[AlertItem]:
     cfg = load_config()
-    store = ParquetStore(cfg.storage.data_dir)
+    store = get_store(cfg.storage)
     df = store.read_alerts()
     if df.empty:
         return []
@@ -94,14 +105,24 @@ def list_alerts(unique_id: str | None = None) -> list[AlertItem]:
 @app.post("/alerts/{alert_id}/qualify", response_model=AlertItem)
 def qualify_alert(alert_id: str, payload: QualifyAlertRequest) -> AlertItem:
     cfg = load_config()
-    store = ParquetStore(cfg.storage.data_dir)
+    store = get_store(cfg.storage)
     df = store.read_alerts()
     if df.empty or alert_id not in df["alert_id"].values:
         raise HTTPException(status_code=404, detail=f"Alerte '{alert_id}' introuvable.")
 
-    df["qualification"] = df["qualification"].astype(object)
-    df.loc[df["alert_id"] == alert_id, "qualification"] = payload.qualification
-    store.upsert_alerts(df)
+    mask = df["alert_id"] == alert_id
+    updates = {
+        "qualification": payload.qualification,
+        "qualification_comment": payload.comment,
+        "qualified_by": payload.qualified_by,
+        "qualified_at": pd.Timestamp(datetime.now(UTC)),
+    }
+    for column, value in updates.items():
+        if column not in df.columns:
+            df[column] = pd.Series([None] * len(df), index=df.index, dtype=object)
+        df[column] = df[column].astype(object)
+        df.loc[mask, column] = value
+    store.upsert_alerts(df.loc[mask])
 
     row = df.loc[df["alert_id"] == alert_id].iloc[0]
     return _row_to_alert_item(row)

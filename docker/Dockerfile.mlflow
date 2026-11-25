@@ -1,0 +1,5 @@
+# Serveur MLflow aligné sur la version du client verrouillée dans uv.lock (mlflow 3.18.x).
+# L'image officielle n'embarque pas de driver PostgreSQL : on ajoute psycopg2.
+FROM ghcr.io/mlflow/mlflow:v3.18.0
+
+RUN pip install --no-cache-dir "psycopg2-binary>=2.9"
