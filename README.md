@@ -175,7 +175,7 @@ L'architecture est conçue dès le départ autour du format tabulaire multi-sér
 ### 2. Installation locale avec `uv`
 
 ```bash
-# Installer toutes les dépendances (incluant dev, tests et MLOps)
+# Installer toutes les dépendances : base + outils de dev (groupe installé par défaut) + extra MLOps
 uv sync --all-extras
 
 # Activer les hooks Git (ruff, fins de ligne, YAML...) — une seule fois par clone

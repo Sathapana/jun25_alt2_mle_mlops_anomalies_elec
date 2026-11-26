@@ -31,6 +31,10 @@ mlops = [
     "mlflow>=2.14.0",
     "statsforecast>=1.7.5",
 ]
+
+# Outils de développement : groupe installé par défaut par `uv sync` / `uv run`
+# (exclure avec `--no-dev`, par exemple dans les images Docker de production).
+[dependency-groups]
 dev = [
     "pre-commit>=4.0.0",
     "pytest>=8.2.0",
