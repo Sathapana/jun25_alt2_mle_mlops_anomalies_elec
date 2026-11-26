@@ -8,6 +8,7 @@ from anomalies_elec.config import AppConfig, load_config
 from anomalies_elec.features.calendar_fr import enrich_french_calendar
 from anomalies_elec.ingestion.eco2mix_client import Eco2MixClient
 from anomalies_elec.ingestion.quality import apply_quality_checks
+from anomalies_elec.ingestion.weather_client import backfill_weather
 from anomalies_elec.storage.base import get_store
 
 
@@ -43,3 +44,18 @@ def run_ingestion_pipeline(
     store = get_store(cfg.storage)
     store.upsert_series(enriched_df, layer=cfg.storage.processed_subdir, name=dataset_key)
     return enriched_df
+
+
+def run_weather_backfill(
+    start_date: str | None = None,
+    end_date: str | None = None,
+    include_extra_windows: bool = True,
+    config: AppConfig | None = None,
+) -> pd.DataFrame:
+    """Exécute le backfill historique météo Open-Meteo (15 min UTC)."""
+    return backfill_weather(
+        start_date=start_date,
+        end_date=end_date,
+        include_extra_windows=include_extra_windows,
+        config=config,
+    )

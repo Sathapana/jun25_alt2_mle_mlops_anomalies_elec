@@ -43,3 +43,71 @@ storage:
 monitoring:
   wasserstein_drift_threshold: 0.15
   psi_drift_threshold: 0.20
+
+weather:
+  archive_url: "https://archive-api.open-meteo.com/v1/archive"
+  default_start_date: "2012-01-01"
+  extra_windows: []
+  max_days_per_chunk: 365
+  timeout_seconds: 30.0
+  locations:
+    - unique_id: "11"
+      name: "Paris"
+      latitude: 48.8566
+      longitude: 2.3522
+      weight: 0.1885
+    - unique_id: "84"
+      name: "Lyon"
+      latitude: 45.7640
+      longitude: 4.8357
+      weight: 0.1257
+    - unique_id: "75"
+      name: "Bordeaux"
+      latitude: 44.8378
+      longitude: -0.5792
+      weight: 0.0940
+    - unique_id: "76"
+      name: "Toulouse"
+      latitude: 43.6047
+      longitude: 1.4442
+      weight: 0.0937
+    - unique_id: "32"
+      name: "Lille"
+      latitude: 50.6292
+      longitude: 3.0573
+      weight: 0.0919
+    - unique_id: "44"
+      name: "Strasbourg"
+      latitude: 48.5734
+      longitude: 7.7521
+      weight: 0.0853
+    - unique_id: "93"
+      name: "Marseille"
+      latitude: 43.2965
+      longitude: 5.3698
+      weight: 0.0793
+    - unique_id: "52"
+      name: "Nantes"
+      latitude: 47.2184
+      longitude: -1.5536
+      weight: 0.0598
+    - unique_id: "53"
+      name: "Rennes"
+      latitude: 48.1173
+      longitude: -1.6778
+      weight: 0.0528
+    - unique_id: "28"
+      name: "Rouen"
+      latitude: 49.4432
+      longitude: 1.0999
+      weight: 0.0510
+    - unique_id: "27"
+      name: "Dijon"
+      latitude: 47.3220
+      longitude: 5.0415
+      weight: 0.0430
+    - unique_id: "24"
+      name: "Orléans"
+      latitude: 47.9029
+      longitude: 1.9093
+      weight: 0.0396
