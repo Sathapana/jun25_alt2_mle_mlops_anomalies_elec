@@ -269,16 +269,18 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+mlops = [
+    { name = "evidently" },
+    { name = "mlflow" },
+    { name = "statsforecast" },
+]
+
+[package.dev-dependencies]
 dev = [
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
-]
-mlops = [
-    { name = "evidently" },
-    { name = "mlflow" },
-    { name = "statsforecast" },
 ]
 
 [package.metadata]
@@ -291,21 +293,25 @@ requires-dist = [
     { name = "mlflow", marker = "extra == 'mlops'", specifier = ">=2.14.0" },
     { name = "numpy", specifier = ">=1.26.0" },
     { name = "pandas", specifier = ">=2.2.0" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.0.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.1.18" },
     { name = "pyarrow", specifier = ">=16.0.0" },
     { name = "pydantic", specifier = ">=2.7.0" },
     { name = "pydantic-settings", specifier = ">=2.3.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.2.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.5.0" },
     { name = "scipy", specifier = ">=1.13.0" },
     { name = "sqlalchemy", specifier = ">=2.0.30" },
     { name = "statsforecast", marker = "extra == 'mlops'", specifier = ">=1.7.5" },
     { name = "uvicorn", specifier = ">=0.30.0" },
 ]
-provides-extras = ["mlops", "dev"]
+provides-extras = ["mlops"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pre-commit", specifier = ">=4.0.0" },
+    { name = "pytest", specifier = ">=8.2.0" },
+    { name = "pytest-cov", specifier = ">=5.0.0" },
+    { name = "ruff", specifier = ">=0.5.0" },
+]
 
 [[package]]
 name = "anyio"

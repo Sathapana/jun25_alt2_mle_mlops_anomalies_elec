@@ -79,6 +79,14 @@ uv sync --all-extras
 uv run pre-commit install
 ```
 
+| Commande | Base | Outils de dev (`[dependency-groups] dev`) | Extra `mlops` |
+| :--- | :---: | :---: | :---: |
+| `uv sync` | ✅ | ✅ | ❌ |
+| `uv sync --all-extras` | ✅ | ✅ | ✅ |
+| `uv sync --no-dev` (images Docker) | ✅ | ❌ | ❌ |
+
+> Les outils de dev (pytest, ruff, pre-commit) sont un **groupe de dépendances** uv, installé par défaut : un simple `uv sync` ne les supprime plus. Pour ajouter un outil : `uv add --dev <paquet>`.
+
 > - **Fins de ligne :** `.gitattributes` impose LF pour tous les fichiers texte, quel que soit l'OS ou le réglage `core.autocrlf`. Ne pas le contourner : des fichiers CRLF montés dans les conteneurs Linux (DAGs, SQL, scripts) peuvent casser.
 > - **Version de Python :** 3.11 partout (`.python-version`, images Docker, CI). Ne pas ajouter de syntaxe ou de dépendance exigeant une version plus récente.
 
