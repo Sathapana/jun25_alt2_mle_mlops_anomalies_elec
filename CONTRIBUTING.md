@@ -196,7 +196,7 @@ Une question encore ouverte au moment de passer en *Done* devient un commentaire
 | :--- | :--- | :--- |
 | Question sur un ticket | Commentaire Jira | @mention de la personne concernée ; une question par commentaire |
 | Décision prise | Commentaire Jira | Préfixe `**Décision :**` + quoi, qui, date ; puis report dans la doc concernée |
-| Décision transverse (pas de temps, règle de merge, schéma SQL…) | [`docs/decisions.md`](docs/decisions.md) (à créer à la première décision) | Une ligne : date, décision, raison, ticket |
+| Décision transverse (pas de temps, règle de merge, schéma SQL…) | Page wiki *Constats et décisions* (fichier [`wiki/Constats-et-decisions.md`](wiki/Constats-et-decisions.md), modifié par PR) | Une ligne : date, décision, raison, ticket |
 | Revue de code | PR GitHub | Commentaires sur le diff ; Jira ne garde que le lien et le résultat |
 | Information urgente / blocage | Canal d'équipe | Puis trace dans le ticket concerné |
 
@@ -209,3 +209,11 @@ Une question encore ouverte au moment de passer en *Done* devient un commentaire
 | Pull Request | `[CLÉ] <titre>` + champ *Ticket* du modèle de PR | `[SCRUM-45] Ingestion temps réel nationale` |
 
 Le modèle de PR ([`.github/pull_request_template.md`](.github/pull_request_template.md)) reprend la *Definition of Done* du §4.3.
+
+### 5.5. Wiki
+
+Le [wiki GitHub](https://github.com/Sathapana/jun25_alt2_mle_mlops_anomalies_elec/wiki) est le point d'entrée de l'équipe. Ses pages sont écrites dans le dossier [`wiki/`](wiki/) et publiées automatiquement par le workflow [`.github/workflows/wiki.yml`](.github/workflows/wiki.yml) à chaque merge sur `main`. **On ne modifie jamais le wiki dans l'interface web** : les changements y seraient écrasés.
+
+- Nom de fichier = nom de page (`wiki/Donnees.md` → page *Donnees*) ; `_Sidebar.md` et `_Footer.md` sont la navigation.
+- Liens entre pages : `[Texte](Nom-De-Page)`. Liens vers le dépôt : URL absolue `https://github.com/Sathapana/jun25_alt2_mle_mlops_anomalies_elec/blob/main/...` (le wiki ne résout pas les chemins relatifs).
+- Le wiki résume et oriente ; le détail reste dans `docs/` et ce guide.

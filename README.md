@@ -8,6 +8,8 @@ Le projet met l'accent sur **la chaîne de production MLOps** (contrôles de qua
 
 ## Documents de Référence du Projet
 
+- **[Wiki du projet](https://github.com/Sathapana/jun25_alt2_mle_mlops_anomalies_elec/wiki)** : point d'entrée de l'équipe (démarrage, conventions, architecture, données, constats & décisions, feuille de route). Source dans [`wiki/`](wiki/), publiée automatiquement.
+
 - **[CADRAGE.md](CADRAGE.md)** : Charte de kickoff (énoncé du problème, métriques clés, budget d'alertes, attribution des rôles P1–P4) et formulaire de décision de la stack technique.
 - **[docs/anomalies-reseau-electrique.md](docs/anomalies-reseau-electrique.md)** : Cahier des charges détaillé du projet (Niveaux 1, 2 et 3) et sources de données.
 - **[docs/revue-litterature.md](docs/revue-litterature.md)** : Revue de littérature complète synthétisant les 6 références bibliographiques (Hyndman *FPP3*, Nixtla `StatsForecast`, Meta `Prophet`, LinkedIn `Luminol`, Hundman et al. *NASA Telemanom*, `Evidently AI`).
