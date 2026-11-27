@@ -63,12 +63,47 @@ class MonitoringConfig(BaseModel):
     psi_drift_threshold: float = 0.20
 
 
+class WeatherLocationConfig(BaseModel):
+    unique_id: str
+    name: str
+    latitude: float
+    longitude: float
+    weight: float
+
+
+def _default_weather_locations() -> list[WeatherLocationConfig]:
+    return [
+        WeatherLocationConfig(unique_id="11", name="Paris", latitude=48.8566, longitude=2.3522, weight=0.1885),
+        WeatherLocationConfig(unique_id="84", name="Lyon", latitude=45.7640, longitude=4.8357, weight=0.1257),
+        WeatherLocationConfig(unique_id="75", name="Bordeaux", latitude=44.8378, longitude=-0.5792, weight=0.0940),
+        WeatherLocationConfig(unique_id="76", name="Toulouse", latitude=43.6047, longitude=1.4442, weight=0.0937),
+        WeatherLocationConfig(unique_id="32", name="Lille", latitude=50.6292, longitude=3.0573, weight=0.0919),
+        WeatherLocationConfig(unique_id="44", name="Strasbourg", latitude=48.5734, longitude=7.7521, weight=0.0853),
+        WeatherLocationConfig(unique_id="93", name="Marseille", latitude=43.2965, longitude=5.3698, weight=0.0793),
+        WeatherLocationConfig(unique_id="52", name="Nantes", latitude=47.2184, longitude=-1.5536, weight=0.0598),
+        WeatherLocationConfig(unique_id="53", name="Rennes", latitude=48.1173, longitude=-1.6778, weight=0.0528),
+        WeatherLocationConfig(unique_id="28", name="Rouen", latitude=49.4432, longitude=1.0999, weight=0.0510),
+        WeatherLocationConfig(unique_id="27", name="Dijon", latitude=47.3220, longitude=5.0415, weight=0.0430),
+        WeatherLocationConfig(unique_id="24", name="Orléans", latitude=47.9029, longitude=1.9093, weight=0.0396),
+    ]
+
+
+class WeatherConfig(BaseModel):
+    archive_url: str = "https://archive-api.open-meteo.com/v1/archive"
+    default_start_date: str = "2012-01-01"
+    extra_windows: list[tuple[str, str]] = Field(default_factory=list)
+    max_days_per_chunk: int = 365
+    timeout_seconds: float = 30.0
+    locations: list[WeatherLocationConfig] = Field(default_factory=_default_weather_locations)
+
+
 class AppConfig(BaseModel):
     project: ProjectConfig = Field(default_factory=ProjectConfig)
     ingestion: IngestionConfig = Field(default_factory=IngestionConfig)
     models: ModelsConfig = Field(default_factory=ModelsConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
     monitoring: MonitoringConfig = Field(default_factory=MonitoringConfig)
+    weather: WeatherConfig = Field(default_factory=WeatherConfig)
 
 
 def load_config(config_path: str | Path | None = None) -> AppConfig:

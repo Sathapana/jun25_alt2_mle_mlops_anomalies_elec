@@ -76,3 +76,18 @@ CREATE TABLE IF NOT EXISTS monitoring_metrics (
 
 CREATE INDEX IF NOT EXISTS idx_monitoring_metrics_lookup
     ON monitoring_metrics (metric_name, unique_id, computed_at);
+
+-- -----------------------------------------------------------------------------
+-- [P1] Séries météorologiques Open-Meteo (température à 2m alignée au pas de 15 min UTC)
+-- Clé d'idempotence : (unique_id, ds) → upsert via INSERT ... ON CONFLICT
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS weather (
+    unique_id          TEXT             NOT NULL,  -- "FR" (moyenne pondérée pop.) ou code INSEE région
+    ds                 TIMESTAMPTZ      NOT NULL,  -- horodatage UTC (pas de 15 min)
+    temperature_2m     DOUBLE PRECISION NOT NULL,  -- température à 2m (°C)
+    ingested_at        TIMESTAMPTZ      NOT NULL DEFAULT now(),
+    PRIMARY KEY (unique_id, ds)
+);
+
+CREATE INDEX IF NOT EXISTS idx_weather_ds ON weather (ds);
+

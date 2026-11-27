@@ -39,6 +39,19 @@ class Store(Protocol):
         """Retourne toutes les alertes enregistrées."""
         ...
 
+    def upsert_weather(self, df: pd.DataFrame, layer: str = "processed", name: str = "weather") -> object:
+        """Insère/met à jour les séries météo de manière idempotente sur `(unique_id, ds)`."""
+        ...
+
+    def read_weather(
+        self,
+        layer: str = "processed",
+        name: str = "weather",
+        unique_id: str | None = None,
+    ) -> pd.DataFrame:
+        """Lit les séries météo triées par `(unique_id, ds)`."""
+        ...
+
 
 def get_store(config: StorageConfig) -> Store:
     """Instancie le backend de stockage choisi par `storage.backend` (ou la variable `STORAGE_BACKEND`)."""
