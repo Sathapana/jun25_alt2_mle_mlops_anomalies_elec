@@ -34,6 +34,9 @@ class IngestionConfig(BaseModel):
     min_consumption_mw: float = 15000.0
     max_consumption_mw: float = 120000.0
     max_frozen_steps: int = 4
+    # Ingestion incrémentale temps réel : fenêtre relue à chaque exécution (recouvrement), en heures.
+    # 6 h au pas de 15 min = 25 lignes, sous la limite de 100 lignes par appel `/records`.
+    realtime_window_hours: int = 6
 
 
 class ModelsConfig(BaseModel):

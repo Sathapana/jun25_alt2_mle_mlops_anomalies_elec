@@ -1,7 +1,9 @@
-"""DAG d'ingestion éCO2mix (squelette — à compléter par P3 avec P1).
+"""DAG d'ingestion temps réel nationale éCO2mix (`eco2mix-national-tr`), toutes les 15 min.
 
-Cible : toutes les 15 min, collecte incrémentale -> Data Quality Gate -> calendrier -> stockage,
-via `anomalies_elec.pipelines.ingest_flow.run_ingestion_pipeline`.
+Chaque exécution relit une fenêtre de recouvrement (`ingestion.realtime_window_hours`) en 1 appel API :
+archive brute -> contrôle qualité -> calendrier -> upsert sur (source, unique_id, ds).
+Le rattrapage initial (tout le jeu temps réel) se lance une fois à la main :
+`uv run python -m anomalies_elec.ingestion.realtime --catch-up`.
 """
 
 from __future__ import annotations
@@ -22,23 +24,26 @@ START_DATE = datetime(2025, 1, 1)
     schedule="*/15 * * * *",
     start_date=START_DATE,
     catchup=False,
+    max_active_runs=1,  # pas deux fenêtres écrites en parallèle
     default_args=DEFAULT_ARGS,
-    tags=["p1", "p3", "ingestion"],
+    tags=["p1", "p3", "ingestion", "temps-reel"],
 )
 def ingest_eco2mix():
     @task.external_python(python=ANOMALIES_PYTHON)
-    def check_environment() -> str:
-        """Vérifie que le package et la configuration sont accessibles depuis le virtualenv projet."""
-        from anomalies_elec.config import load_config
-        from anomalies_elec.pipelines import ingest_flow  # noqa: F401
+    def ingest_national_tr(window_end: str) -> dict:
+        """1 appel `/records` sur la fenêtre se terminant à `window_end` (fin d'intervalle du run).
 
-        cfg = load_config()
-        return f"backend={cfg.storage.backend} freq={cfg.project.freq}"
+        `window_end` vaut "None" pour un run manuel sans intervalle : la fenêtre se termine alors maintenant.
+        Une erreur API (timeout, 5xx) fait échouer la tâche, relancée par Airflow (`retries`).
+        """
+        import logging
 
-    # TODO(P3): remplacer par la chaîne réelle, p.ex. une tâche par jeu de données
-    #   (national_tr, regional_tr, ...) appelant run_ingestion_pipeline(dataset_key=..., where=...)
-    #   avec une fenêtre incrémentale basée sur data_interval_start / data_interval_end.
-    check_environment()
+        from anomalies_elec.ingestion.realtime import run_incremental
+
+        logging.basicConfig(level=logging.INFO)
+        return run_incremental(end=window_end)
+
+    ingest_national_tr(window_end="{{ data_interval_end }}")
 
 
 ingest_eco2mix()
