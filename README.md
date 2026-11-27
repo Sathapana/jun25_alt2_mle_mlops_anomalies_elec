@@ -12,6 +12,7 @@ Le projet met l'accent sur **la chaîne de production MLOps** (contrôles de qua
 - **[docs/anomalies-reseau-electrique.md](docs/anomalies-reseau-electrique.md)** : Cahier des charges détaillé du projet (Niveaux 1, 2 et 3) et sources de données.
 - **[docs/revue-litterature.md](docs/revue-litterature.md)** : Revue de littérature complète synthétisant les 6 références bibliographiques (Hyndman *FPP3*, Nixtla `StatsForecast`, Meta `Prophet`, LinkedIn `Luminol`, Hundman et al. *NASA Telemanom*, `Evidently AI`).
 - **[docs/donnees-eco2mix-national.md](docs/donnees-eco2mix-national.md)** : Backfill de l'historique national (export Opendatasoft → Parquet partitionné par année) et constats sur le pas de temps, les changements d'heure et les valeurs manquantes.
+- **[docs/ingestion-temps-reel.md](docs/ingestion-temps-reel.md)** : Ingestion temps réel nationale (rattrapage + incrémental toutes les 15 min), fenêtre de recouvrement, archive brute et constats sur le jeu temps réel.
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** : Guide de contribution, conventions Git/CI, organisation par pôles (P1 à P4) et workflow de développement avec `uv`, `ruff` et `pytest`.
 
 ---

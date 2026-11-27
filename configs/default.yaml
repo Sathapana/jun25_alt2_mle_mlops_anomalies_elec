@@ -18,6 +18,7 @@ ingestion:
   min_consumption_mw: 15000.0
   max_consumption_mw: 120000.0
   max_frozen_steps: 4
+  realtime_window_hours: 6       # Fenêtre de recouvrement relue toutes les 15 min (25 lignes, 1 appel API)
 
 models:
   weekly_lag_steps: 672          # 7 jours * 96 pas de 15 minutes
