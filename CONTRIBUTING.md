@@ -128,6 +128,8 @@ Ne jamais travailler directement sur `main` pour le développement des fonctionn
 - `fix/p1-dst-timezone-handling`
 - `docs/update-cadrage`
 
+Quand la branche correspond à un ticket Jira, insérer sa clé après le pôle : `feat/p1-SCRUM-45-ingestion-temps-reel`, `fix/p2-SCRUM-23-seuil-ewma`.
+
 ### 4.2. Format des messages de commit (Conventional Commits)
 Nous utilisons la convention **Conventional Commits** :
 - `feat(p1): add Opendatasoft eco2mix client with quota guard`
@@ -138,6 +140,8 @@ Nous utilisons la convention **Conventional Commits** :
 - `test(p1): add unit tests for missing 15-min publication gaps`
 - `docs: update README architecture diagram`
 
+Quand le commit se rattache à un ticket Jira, terminer le titre par sa clé entre parenthèses : `feat(p1): ingestion temps réel nationale (SCRUM-45)`. Jira relie alors automatiquement le commit au ticket.
+
 ### 4.3. Critères d'acceptation d'une Pull Request (*Definition of Done*)
 Avant de merger une branche dans `main` :
 1. **Zéro erreur Ruff :** `uv run ruff check src/ tests/ dags/` et `uv run ruff format --check src/ tests/ dags/` passent (vérifiés par pre-commit et par la CI).
@@ -145,3 +149,63 @@ Avant de merger une branche dans `main` :
 3. **Configuration externalisée :** Aucun chemin local en dur, aucune clé ou seuil critique codé en dur dans `src/` — utiliser `configs/default.yaml` et `src/anomalies_elec/config.py`.
 4. **Respect du quota API :** Les tests automatisés doivent mocker les appels HTTP vers `odre.opendatasoft.com` afin de préserver le quota mensuel de 50 000 appels.
 5. **Revue croisée :** Au moins un autre membre de l'équipe (idéalement du pôle amont ou aval connecté au contrat de données) a relu et validé la PR.
+
+> **À valider en équipe :** une exception pour les « tâches simples » (docs, typo, config sans impact sur un contrat de données) a été proposée dans SCRUM-13. Tant qu'aucune décision n'est actée (voir §5.3), la relecture croisée reste obligatoire.
+
+---
+
+## 5. Tickets Jira & Communication
+
+> **Statut : proposition à valider en équipe.** Ce format reprend ce qui a bien fonctionné dans SCRUM-12, SCRUM-13, SCRUM-21 et SCRUM-45 (sections *À savoir* / *À discuter*, *Hors périmètre*, commandes prêtes à copier) et corrige ce qui a manqué : cases jamais cochées, questions laissées ouvertes dans des tickets fermés, liens `file:///` locaux, absence de lien vers la PR.
+
+Le projet Jira est **SCRUM** (*Anomalie_Electric*). Le modèle complet à copier, avec un exemple rempli, se trouve dans [`docs/templates/ticket-jira.md`](docs/templates/ticket-jira.md).
+
+### 5.1. Structure d'un ticket
+
+- **Titre :** `Step N – <verbe à l'infinitif + objet>`, p. ex. `Step 8 – Collecter les données météo (Open-Meteo)`.
+- **Champs :** un *assignee* nominatif, l'epic de la phase en parent, les labels `P1-data` / `P2-model` / `P3-mlops` / `P4-monitoring` + `phase-N`.
+- **Langue :** titres de sections en français ; les termes techniques, noms de colonnes et commandes restent tels quels.
+
+La description se remplit en **deux temps** :
+
+| Moment | Sections | Rempli par |
+| :--- | :--- | :--- |
+| **Création** (avant le travail) | Responsable, Contexte, Périmètre, Hors périmètre, Critères d'acceptation, Dépendances | Personne qui crée le ticket |
+| **Livraison** (passage en *Verification*) | Livraison (PR, commande, doc), À savoir, À discuter | Assignee |
+
+Règles :
+1. **Critères d'acceptation vérifiables** : un chiffre, une commande, un fichier ou un test. Cocher les cases au fur et à mesure ; un ticket *Done* a toutes ses cases cochées, ou le critère est barré avec une justification.
+2. **À savoir** = faits utiles aux autres pôles (volumes, trous, conventions, pièges), chiffrés si possible.
+3. **À discuter** = une question par ligne, avec la personne ou le pôle qui doit trancher et l'échéance : `- [ ] Pas de modélisation : 30 min ou 15 min ? — @P2 — avant Step 10`.
+4. **Liens** : toujours relatifs au dépôt ou vers GitHub (`.../blob/main/docs/...`), jamais `file:///c:/...`.
+
+### 5.2. Cycle de statuts
+
+| Statut | Signifie |
+| :--- | :--- |
+| **To Do** | Partie « Création » complète, travail non commencé |
+| **In Progress** | Assignee renseigné, branche créée |
+| **Verification** | PR ouverte, partie « Livraison » remplie, relecture demandée |
+| **Done** | PR **mergée sur `main`**, critères cochés, questions *À discuter* tranchées ou transférées |
+
+Une question encore ouverte au moment de passer en *Done* devient un commentaire avec @mention, ou un ticket dédié si elle demande du travail.
+
+### 5.3. Communication
+
+| Besoin | Canal | Format |
+| :--- | :--- | :--- |
+| Question sur un ticket | Commentaire Jira | @mention de la personne concernée ; une question par commentaire |
+| Décision prise | Commentaire Jira | Préfixe `**Décision :**` + quoi, qui, date ; puis report dans la doc concernée |
+| Décision transverse (pas de temps, règle de merge, schéma SQL…) | [`docs/decisions.md`](docs/decisions.md) (à créer à la première décision) | Une ligne : date, décision, raison, ticket |
+| Revue de code | PR GitHub | Commentaires sur le diff ; Jira ne garde que le lien et le résultat |
+| Information urgente / blocage | Canal d'équipe | Puis trace dans le ticket concerné |
+
+### 5.4. Traçabilité Git ↔ Jira
+
+| Élément | Format | Exemple |
+| :--- | :--- | :--- |
+| Branche | `<type>/<pôle>-<CLÉ>-<sujet>` | `feat/p1-SCRUM-45-ingestion-temps-reel` |
+| Commit | Conventional Commit + `(CLÉ)` | `feat(p1): ingestion temps réel nationale (SCRUM-45)` |
+| Pull Request | `[CLÉ] <titre>` + champ *Ticket* du modèle de PR | `[SCRUM-45] Ingestion temps réel nationale` |
+
+Le modèle de PR ([`.github/pull_request_template.md`](.github/pull_request_template.md)) reprend la *Definition of Done* du §4.3.
