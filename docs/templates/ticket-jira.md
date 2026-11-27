@@ -82,5 +82,5 @@ Contenu repris du ticket existant, réorganisé selon le modèle. Les questions 
 
 ### À discuter
 - [ ] Rafraîchissement continu : endpoint Forecast (`minutely_15`, `past_days=1`) toutes les 15 min ou toutes les heures avec l'ingestion éCO2mix ? — @P3 — avant Step 18 (SCRUM-16)
-- [ ] Exception « tâche simple » à la relecture croisée ? — équipe — à acter dans `docs/decisions.md`
+- [ ] Exception « tâche simple » à la relecture croisée ? — équipe — à acter dans `wiki/Constats-et-decisions.md`
 ```

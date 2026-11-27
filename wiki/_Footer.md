@@ -1,0 +1,1 @@
+Pages publiées automatiquement depuis le dossier [`wiki/`](https://github.com/Sathapana/jun25_alt2_mle_mlops_anomalies_elec/tree/main/wiki) du dépôt. **Modifier via une PR**, pas dans l'interface du wiki : toute modification faite ici est écrasée à la prochaine synchronisation.
